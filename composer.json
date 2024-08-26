@@ -8,15 +8,15 @@
             "Venom\\SystemSettings\\": "src/"
         }
     },
-    "minimum-stability": "dev",
-    "require": {
-        "spatie/laravel-package-tools": "dev-main"
-    },
+    "minimum-stability": "stable",
     "extra": {
         "laravel": {
             "providers": [
                 "Venom\\SystemSettings\\Providers\\SystemSettingsServiceProvider"
             ]
         }
+    },
+    "require": {
+        "spatie/laravel-package-tools": "^1.16"
     }
 }
