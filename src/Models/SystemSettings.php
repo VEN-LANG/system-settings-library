@@ -8,6 +8,8 @@ class SystemSettings extends Model
 {
     protected $fillable = ['key', 'type', 'value'];
 
+    protected $table = 'venom_system_settings';
+
     // Accessor for converting JSON strings to arrays
     public function getValueAttribute($value)
     {
