@@ -9,7 +9,7 @@ class SystemSettingsService
     public function get($key, $default = null)
     {
         return Cache::remember("system_settings.$key", config('system_settings.cache_duration'), function () use ($key, $default) {
-            return $this->keyExists($key) ? SystemSettings::where('key', $key)->value('value') : $default;
+            return $this->hasKey($key) ? SystemSettings::where('key', $key)->value('value') : $default;
         });
     }
 
@@ -27,8 +27,8 @@ class SystemSettingsService
      * @return bool
      */
 
-    public function keyExists($key)
+    public function hasKey($key)
     {
-        return (new SystemSettings())->valueExists($key);
+        return (new SystemSettings())->hasKey($key);
     }
 }

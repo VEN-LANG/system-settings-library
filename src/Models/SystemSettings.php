@@ -20,7 +20,7 @@ class SystemSettings extends Model
         $this->attributes['value'] = $this->type === 'json' ? json_encode($value) : $value;
     }
 
-    public function valueExists($key){
+    public function hasKey($key){
         return $this->where('key', $key)->count() > 0;
     }
 }
