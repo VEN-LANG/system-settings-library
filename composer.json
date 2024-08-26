@@ -12,7 +12,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Venom\\SystemSettings\\Providers\\SystemSettingsServiceProvider"
+                "Venom\\SystemSettings\\SystemSettingsServiceProvider"
             ]
         }
     },

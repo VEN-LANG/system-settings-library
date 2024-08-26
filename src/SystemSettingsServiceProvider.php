@@ -1,6 +1,7 @@
 <?php
 
-namespace Venom\SystemSettings\Providers;
+namespace  Venom\SystemSettings;
+
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -22,5 +23,6 @@ class SystemSettingsServiceProvider extends PackageServiceProvider
     public function bootingPackage()
     {
         // Register additional services, middleware, or events here.
+
     }
 }
