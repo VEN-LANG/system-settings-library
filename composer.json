@@ -12,14 +12,15 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Venom\\SystemSettings\\SystemSettingsServiceProvider"
+                "Venom\\SystemSettings\\Providers\\SystemSettingsServiceProvider"
             ]
         }
     },
     "require": {
-        "spatie/laravel-package-tools": "^1.16.4",
-        "laravel-foundation/console": "^5.7.11",
         "illuminate/support": "^11.21.0",
-        "illuminate/database": "^11.21.0"
+        "illuminate/database": "^11.21.0",
+        "illuminate/queue": "^11.21",
+        "illuminate/bus": "^11.21",
+        "illuminate/contracts": "^11.21"
     }
 }
