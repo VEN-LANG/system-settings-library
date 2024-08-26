@@ -17,6 +17,9 @@
         }
     },
     "require": {
-        "spatie/laravel-package-tools": "^1.16"
+        "spatie/laravel-package-tools": "^1.16",
+        "laravel-foundation/console": "^5.7",
+        "illuminate/support": "^11.21",
+        "illuminate/database": "^11.21"
     }
 }
