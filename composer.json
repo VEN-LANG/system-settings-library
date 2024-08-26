@@ -9,5 +9,14 @@
         }
     },
     "minimum-stability": "dev",
-    "require": {}
+    "require": {
+        "spatie/laravel-package-tools": "dev-main"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Venom\\SystemSettings\\Providers\\SystemSettingsServiceProvider"
+            ]
+        }
+    }
 }

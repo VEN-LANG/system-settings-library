@@ -11,12 +11,41 @@ class ComposerStaticInit5eeba4b7d38d1217ff0fd39ec20da240
         array (
             'Venom\\SystemSettings\\' => 21,
         ),
+        'S' => 
+        array (
+            'Spatie\\LaravelPackageTools\\' => 27,
+        ),
+        'P' => 
+        array (
+            'Psr\\SimpleCache\\' => 16,
+            'Psr\\Container\\' => 14,
+        ),
+        'I' => 
+        array (
+            'Illuminate\\Contracts\\' => 21,
+        ),
     );
 
     public static $prefixDirsPsr4 = array (
         'Venom\\SystemSettings\\' => 
         array (
             0 => __DIR__ . '/../..' . '/src',
+        ),
+        'Spatie\\LaravelPackageTools\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/spatie/laravel-package-tools/src',
+        ),
+        'Psr\\SimpleCache\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/psr/simple-cache/src',
+        ),
+        'Psr\\Container\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/psr/container/src',
+        ),
+        'Illuminate\\Contracts\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/illuminate/contracts',
         ),
     );
 
