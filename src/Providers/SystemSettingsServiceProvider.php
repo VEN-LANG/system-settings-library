@@ -1,6 +1,5 @@
 <?php
-
-namespace  Venom\SystemSettings\Providers;
+namespace Venom\SystemSettings\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Venom\SystemSettings\Console\Commands\ClearSystemSettingsCommand;
@@ -13,10 +12,16 @@ class SystemSettingsServiceProvider extends ServiceProvider
 {
     public function register()
     {
+        // Merge the package configuration file with the application's copy.
         $this->mergeConfigFrom(__DIR__ . '/../../config/system_settings.php', 'system_settings');
-        $this->app->singleton('system_settings', function () {
-            return new SystemSettingsService();
+
+        // Register the SystemSettingsService with dynamic model binding.
+        $this->app->singleton(SystemSettingsService::class, function ($app) {
+            // Get the model class from configuration, defaulting to the package's SystemSettings model.
+            $model = $app['config']->get('system_settings.model', \Venom\SystemSettings\Models\SystemSettings::class);
+            return new SystemSettingsService(new $model);
         });
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 GetSystemSettingsCommand::class,
@@ -29,12 +34,16 @@ class SystemSettingsServiceProvider extends ServiceProvider
 
     public function boot()
     {
+        // Load the package's migrations.
         $this->loadMigrationsFrom(__DIR__ . '/../../database/migrations');
 
+        // Publish configuration and migrations to allow user customization.
         $this->publishes([
             __DIR__ . '/../../config/system_settings.php' => config_path('system_settings.php'),
         ], 'config');
 
-
+        $this->publishes([
+            __DIR__ . '/../../database/migrations' => database_path('migrations'),
+        ], 'migrations');
     }
 }
