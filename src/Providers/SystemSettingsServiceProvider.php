@@ -5,6 +5,7 @@ namespace  Venom\SystemSettings\Providers;
 use Illuminate\Support\ServiceProvider;
 use Venom\SystemSettings\Console\Commands\ClearSystemSettingsCommand;
 use Venom\SystemSettings\Console\Commands\GetSystemSettingsCommand;
+use Venom\SystemSettings\Console\Commands\HasSystemSettingsCommand;
 use Venom\SystemSettings\Console\Commands\SetSystemSettingsCommand;
 use Venom\SystemSettings\Services\SystemSettingsService;
 
@@ -21,6 +22,7 @@ class SystemSettingsServiceProvider extends ServiceProvider
                 GetSystemSettingsCommand::class,
                 SetSystemSettingsCommand::class,
                 ClearSystemSettingsCommand::class,
+                HasSystemSettingsCommand::class,
             ]);
         }
     }
