@@ -95,4 +95,62 @@ class SystemSettingsService
 
         return $query->get();
     }
+
+    /**
+     * Bulk set or update settings.
+     *
+     * @param array $settings
+     * @return array
+     */
+    public function bulkSet(array $settings)
+    {
+        $updatedSettings = [];
+
+        foreach ($settings as $setting) {
+            $key = $setting['key'];
+            $value = $setting['value'];
+            $type = $setting['type'] ?? 'string';
+
+            $updatedSettings[] = $this->set($key, $value, $type);
+        }
+
+        return $updatedSettings;
+    }
+
+    /**
+     * Bulk delete settings by keys.
+     *
+     * @param array $keys
+     * @return int
+     */
+    public function bulkDelete(array $keys)
+    {
+        $deletedCount = 0;
+
+        foreach ($keys as $key) {
+            if ($this->delete($key)) {
+                $deletedCount++;
+            }
+        }
+
+        return $deletedCount;
+    }
+
+    /**
+     * Bulk get settings by keys.
+     *
+     * @param array $keys
+     * @param mixed $default
+     * @return array
+     */
+    public function bulkGet(array $keys, $default = null)
+    {
+        $settings = [];
+
+        foreach ($keys as $key) {
+            $settings[$key] = $this->get($key, $default);
+        }
+
+        return $settings;
+    }
 }
