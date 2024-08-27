@@ -3,10 +3,16 @@
 namespace Venom\SystemSettings\Services;
 
 use Illuminate\Support\Facades\Cache;
-use Venom\SystemSettings\Models\SystemSettings;
 
 class SystemSettingsService
 {
+    protected $model;
+
+    public function __construct($model)
+    {
+        $this->model = $model;
+    }
+
     /**
      * Get the value of a setting by key.
      *
@@ -16,8 +22,8 @@ class SystemSettingsService
      */
     public function get($key, $default = null)
     {
-        return Cache::remember(SystemSettings::$cachename.".$key", config('system_settings.cache_duration'), function () use ($key, $default) {
-            return $this->hasKey($key) ? SystemSettings::where('key', $key)->value('value') : $default;
+        return Cache::remember($this->model::$cachename.".$key", config('system_settings.cache_duration'), function () use ($key, $default) {
+            return $this->hasKey($key) ? $this->model::where('key', $key)->value('value') : $default;
         });
     }
 
@@ -27,13 +33,13 @@ class SystemSettingsService
      * @param string $key
      * @param mixed $value
      * @param string $type
-     * @return \Venom\SystemSettings\Models\SystemSettings
+     * @return \Illuminate\Database\Eloquent\Model
      */
-    public function set($key, $value, $type)
+    public function set($key, $value, $type = 'string')
     {
-        $setting = SystemSettings::updateOrCreate(['key' => $key], ['value' => $value, 'type' => $type]);
-        Cache::forget(SystemSettings::$cachename.".$key");
-        Cache::put(SystemSettings::$cachename.".$key", $value, config('system_settings.cache_duration'));
+        $setting = $this->model::updateOrCreate(['key' => $key], ['value' => $value, 'type' => $type]);
+        Cache::forget($this->model::$cachename.".$key");
+        Cache::put($this->model::$cachename.".$key", $value, config('system_settings.cache_duration'));
 
         return $setting;
     }
@@ -46,7 +52,7 @@ class SystemSettingsService
      */
     public function hasKey($key)
     {
-        return SystemSettings::where('key', $key)->exists();
+        return $this->model::where('key', $key)->exists();
     }
 
     /**
@@ -57,7 +63,7 @@ class SystemSettingsService
      */
     public function hasType($type)
     {
-        return SystemSettings::where('type', $type)->exists();
+        return $this->model::where('type', $type)->exists();
     }
 
     /**
@@ -69,10 +75,10 @@ class SystemSettingsService
      */
     public function delete($key)
     {
-        $setting = SystemSettings::where('key', $key)->first();
+        $setting = $this->model::where('key', $key)->first();
 
         if ($setting) {
-            Cache::forget(SystemSettings::$cachename.".$key");
+            Cache::forget($this->model::$cachename.".$key");
             return $setting->delete();
         }
 
@@ -87,7 +93,7 @@ class SystemSettingsService
      */
     public function all($type = null)
     {
-        $query = SystemSettings::query();
+        $query = $this->model::query();
 
         if ($type) {
             $query->where('type', $type);
