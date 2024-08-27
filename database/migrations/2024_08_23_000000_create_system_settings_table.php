@@ -10,7 +10,7 @@ class CreateSystemSettingsTable extends Migration
         Schema::create('venom_system_settings', function (Blueprint $table) {
             $table->id();
             $table->string('key')->unique();
-            $table->string('type');
+            $table->string('type')->default('string');
             $table->text('value')->nullable();
             $table->timestamps();
         });
