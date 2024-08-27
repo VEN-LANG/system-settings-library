@@ -7,8 +7,8 @@ use Venom\SystemSettings\Services\SystemSettingsService;
 
 class SetSystemSettingsCommand extends Command
 {
-    protected $signature = 'settings:set {key} {value}';
-    protected $description = 'Set or update a setting value by key';
+    protected $signature = 'settings:set {key} {value} {type?}';
+    protected $description = 'Set or update a system setting value by key';
 
     protected $settingsService;
 
@@ -22,8 +22,9 @@ class SetSystemSettingsCommand extends Command
     {
         $key = $this->argument('key');
         $value = $this->argument('value');
+        $type = $this->argument('type') ?? 'string';
 
-        $this->settingsService->set($key, $value);
-        $this->info("Setting '{$key}' has been updated to '{$value}'.");
+        $this->settingsService->set($key, $value, $type);
+        $this->info("System setting '{$key}' of type '{$type}' has been updated to '{$value}'.");
     }
 }
