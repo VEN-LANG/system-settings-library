@@ -2,19 +2,24 @@
 
 namespace Venom\SystemSettings\Services;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class SystemSettingsService
 {
     protected $model;
+    protected $cachePrefix;
+    protected $cacheDuration;
 
     public function __construct($model)
     {
         $this->model = $model;
+        $this->cachePrefix = config('system_settings.cache_key_prefix', 'system_settings');
+        $this->cacheDuration = config('system_settings.cache_duration', 60);
     }
 
     /**
-     * Get the value of a setting by key.
+     * Get the value of a setting by key, applying necessary type formatting.
      *
      * @param string $key
      * @param mixed $default
@@ -22,13 +27,17 @@ class SystemSettingsService
      */
     public function get($key, $default = null)
     {
-        return Cache::remember($this->model::$cachename.".$key", config('system_settings.cache_duration'), function () use ($key, $default) {
-            return $this->hasKey($key) ? $this->model::where('key', $key)->value('value') : $default;
+        $cacheKey = "{$this->cachePrefix}.$key";
+
+        $setting = Cache::remember($cacheKey, $this->cacheDuration, function () use ($key) {
+            return $this->model::where('key', $key)->first();
         });
+
+        return $setting ? $this->formatValue($setting->value, $setting->type) : $default;
     }
 
     /**
-     * Set or update a setting's value and type by key.
+     * Set or update a setting's value and type by key, applying necessary formatting.
      *
      * @param string $key
      * @param mixed $value
@@ -37,11 +46,66 @@ class SystemSettingsService
      */
     public function set($key, $value, $type = 'string')
     {
-        $setting = $this->model::updateOrCreate(['key' => $key], ['value' => $value, 'type' => $type]);
-        Cache::forget($this->model::$cachename.".$key");
-        Cache::put($this->model::$cachename.".$key", $value, config('system_settings.cache_duration'));
+        $formattedValue = $this->cleanValue($value, $type);
+
+        $setting = $this->model::updateOrCreate(
+            ['key' => $key],
+            ['value' => $formattedValue, 'type' => $type]
+        );
+
+        $cacheKey = "{$this->cachePrefix}.$key";
+        Cache::forget($cacheKey);
+        Cache::put($cacheKey, $formattedValue, $this->cacheDuration);
 
         return $setting;
+    }
+
+    /**
+     * Format retrieved values based on type.
+     *
+     * @param string $value
+     * @param string $type
+     * @return mixed
+     */
+    protected function formatValue($value, $type)
+    {
+        switch ($type) {
+            case 'integer':
+                return (int) $value;
+            case 'float':
+                return (float) $value;
+            case 'boolean':
+                return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+            case 'json':
+            case 'array':
+                return json_decode($value, true);
+            default:
+                return $value;
+        }
+    }
+
+    /**
+     * Clean values before saving based on type.
+     *
+     * @param mixed $value
+     * @param string $type
+     * @return string
+     */
+    protected function cleanValue($value, $type)
+    {
+        switch ($type) {
+            case 'integer':
+                return (string) intval($value);
+            case 'float':
+                return (string) floatval($value);
+            case 'boolean':
+                return $value ? 'true' : 'false';
+            case 'json':
+            case 'array':
+                return json_encode($value);
+            default:
+                return trim((string) $value);
+        }
     }
 
     /**
@@ -78,7 +142,7 @@ class SystemSettingsService
         $setting = $this->model::where('key', $key)->first();
 
         if ($setting) {
-            Cache::forget($this->model::$cachename.".$key");
+            Cache::forget("{$this->cachePrefix}.$key");
             return $setting->delete();
         }
 
@@ -89,21 +153,26 @@ class SystemSettingsService
      * Get all settings or filter by type.
      *
      * @param string|null $type
-     * @return \Illuminate\Database\Eloquent\Collection|static[]
+     * @return Collection
      */
     public function all($type = null)
     {
         $query = $this->model::query();
-
         if ($type) {
             $query->where('type', $type);
         }
 
-        return $query->get();
+        return $query->get()->map(function ($setting) {
+            return [
+                'key' => $setting->key,
+                'value' => $this->formatValue($setting->value, $setting->type),
+                'type' => $setting->type,
+            ];
+        });
     }
 
     /**
-     * Bulk set or update settings.
+     * Bulk set or update settings with value formatting.
      *
      * @param array $settings
      * @return array
@@ -113,11 +182,11 @@ class SystemSettingsService
         $updatedSettings = [];
 
         foreach ($settings as $setting) {
-            $key = $setting['key'];
-            $value = $setting['value'];
-            $type = $setting['type'] ?? 'string';
-
-            $updatedSettings[] = $this->set($key, $value, $type);
+            $updatedSettings[] = $this->set(
+                $setting['key'],
+                $setting['value'],
+                $setting['type'] ?? 'string'
+            );
         }
 
         return $updatedSettings;
@@ -127,23 +196,21 @@ class SystemSettingsService
      * Bulk delete settings by keys.
      *
      * @param array $keys
-     * @return int
+     * @return int Number of deleted settings
      */
     public function bulkDelete(array $keys)
     {
-        $deletedCount = 0;
+        $deleted = $this->model::whereIn('key', $keys)->delete();
 
         foreach ($keys as $key) {
-            if ($this->delete($key)) {
-                $deletedCount++;
-            }
+            Cache::forget("{$this->cachePrefix}.$key");
         }
 
-        return $deletedCount;
+        return $deleted;
     }
 
     /**
-     * Bulk get settings by keys.
+     * Bulk get settings by keys with value formatting.
      *
      * @param array $keys
      * @param mixed $default
@@ -151,12 +218,8 @@ class SystemSettingsService
      */
     public function bulkGet(array $keys, $default = null)
     {
-        $settings = [];
-
-        foreach ($keys as $key) {
-            $settings[$key] = $this->get($key, $default);
-        }
-
-        return $settings;
+        return collect($keys)->mapWithKeys(function ($key) use ($default) {
+            return [$key => $this->get($key, $default)];
+        })->toArray();
     }
 }
