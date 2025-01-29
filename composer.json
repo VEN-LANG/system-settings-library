@@ -23,8 +23,5 @@
         "illuminate/queue": "^11.21",
         "illuminate/bus": "^11.21",
         "illuminate/contracts": "^11.21"
-    },
-    "require-dev": {
-        "laravel/framework": "^11.41"
     }
 }
