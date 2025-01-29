@@ -28,6 +28,7 @@ use /**
  */
     Illuminate\Console\Command;
 use Illuminate\Support\Facades\Config;
+use Venom\SystemSettings\Models\SystemSettings;
 use /**
  * SystemSettingsService class provides functionality to manage
  * system settings across the application. It allows the retrieval,
@@ -79,7 +80,9 @@ class HasSystemSettingsCommand extends Command
     public function __construct()
     {
         parent::__construct();
-        $this->settingsService = new (Config::get('system_settings.service', SystemSettingsService::class))();;
+        $this->settingsService = new (Config::get('system_settings.service', SystemSettingsService::class))(
+            new (Config::get('system_settings.model', SystemSettings::class))()
+        );
     }
 
     /**
