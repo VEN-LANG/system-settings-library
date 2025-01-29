@@ -1,225 +1,108 @@
 <?php
 
+/**
+ * Service class that handles operations related to system settings.
+ * Provides methods to retrieve, set, remove, and manage settings, both individually and in bulk.
+ */
+
 namespace Venom\SystemSettings\Services;
 
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Cache;
+use /**
+ * The SystemSettings class is a model representation of the system settings
+ * used within the application. It is designed to manage the storage,
+ * retrieval, and updating of configuration settings for the system.
+ *
+ * Responsibilities:
+ * - Provides access to system-wide configuration settings.
+ * - Handles interaction with the database or other persistent storage mechanisms
+ *   for storing system settings.
+ * - Ensures settings are retrieved and saved in a structured and consistent manner.
+ *
+ * Typical Use Case:
+ * - This class would be utilized to load or update settings that are
+ *   global to the application, such as API keys, feature flags, or application configurations.
+ */
+    Venom\SystemSettings\Models\SystemSettings;
 
+/**
+ * Service class for managing system settings.
+ * This class provides an interface for interacting with system settings, allowing for retrieval, storage,
+ * and deletion of settings both individually and in bulk.
+ */
 class SystemSettingsService
 {
+    /**
+     *
+     */
     protected $model;
-    protected $cachePrefix;
-    protected $cacheDuration;
-
-    public function __construct($model)
-    {
-        $this->model = $model;
-        $this->cachePrefix = config('system_settings.cache_key_prefix', 'system_settings');
-        $this->cacheDuration = config('system_settings.cache_duration', 60);
-    }
 
     /**
-     * Get the value of a setting by key, applying necessary type formatting.
+     * Constructor method for initializing the class with a model.
      *
-     * @param string $key
-     * @param mixed $default
-     * @return mixed
+     * @param mixed $model The model to be used. Defaults to SystemSettings::class if null.
+     * @return void
      */
-    public function get($key, $default = null)
-    {
-        $cacheKey = "{$this->cachePrefix}.$key";
+    public function __construct($model){
 
-        $setting = Cache::remember($cacheKey, $this->cacheDuration, function () use ($key) {
-            return $this->model::where('key', $key)->first();
-        });
-
-        return $setting ? $this->formatValue($setting->value, $setting->type) : $default;
+        $this->model = $model ?? new (config('system_settings.model', SystemSettings::class))();
     }
 
     /**
-     * Set or update a setting's value and type by key, applying necessary formatting.
+     * Retrieves the value associated with the specified key from the system settings.
      *
-     * @param string $key
-     * @param mixed $value
-     * @param string $type
-     * @return \Illuminate\Database\Eloquent\Model
+     * @param string $key The key used to retrieve the value.
+     * @param mixed $default The default value to return if the key does not exist.
+     * @return mixed The value associated with the key, or the default value if the key does not exist.
      */
-    public function set($key, $value, $type = 'string')
+    public function get(string $key, $default = null)
     {
-        $formattedValue = $this->cleanValue($value, $type);
-
-        $setting = $this->model::updateOrCreate(
-            ['key' => $key],
-            ['value' => $formattedValue, 'type' => $type]
-        );
-
-        $cacheKey = "{$this->cachePrefix}.$key";
-        Cache::forget($cacheKey);
-        Cache::put($cacheKey, $formattedValue, $this->cacheDuration);
-
-        return $setting;
+        return $this->model::getValueByKey($key, $default);
     }
 
     /**
-     * Format retrieved values based on type.
+     * Sets a value in the system settings for a given key and type.
      *
-     * @param string $value
-     * @param string $type
-     * @return mixed
+     * @param string $key The key identifying the setting to be set.
+     * @param mixed $value The value to be set for the given key.
+     * @param string $type The type of the value to be stored (default is 'string').
      */
-    protected function formatValue($value, $type)
+    public function set(string $key, $value, string $type = 'string')
     {
-        switch ($type) {
-            case 'integer':
-                return (int) $value;
-            case 'float':
-                return (float) $value;
-            case 'boolean':
-                return filter_var($value, FILTER_VALIDATE_BOOLEAN);
-            case 'json':
-            case 'array':
-                return json_decode($value, true);
-            default:
-                return $value;
-        }
+        return $this->model::setValueByKey($key, $value, $type);
     }
 
     /**
-     * Clean values before saving based on type.
+     * Removes the value associated with the specified key from the system settings.
      *
-     * @param mixed $value
-     * @param string $type
-     * @return string
+     * @param string $key The key identifying the value to be removed.
+     * @return bool True if the value was successfully removed, false otherwise.
      */
-    protected function cleanValue($value, $type)
+    public function remove(string $key)
     {
-        switch ($type) {
-            case 'integer':
-                return (string) intval($value);
-            case 'float':
-                return (string) floatval($value);
-            case 'boolean':
-                return $value ? 'true' : 'false';
-            case 'json':
-            case 'array':
-                return json_encode($value);
-            default:
-                return trim((string) $value);
-        }
+        return $this->model::removeByKey($key);
     }
 
     /**
-     * Checks if a key exists in the settings table.
+     * Sets multiple settings in bulk, using the provided key-value pairs and optional types.
      *
-     * @param string $key
-     * @return bool
-     */
-    public function hasKey($key)
-    {
-        return $this->model::where('key', $key)->exists();
-    }
-
-    /**
-     * Checks if a type exists in the settings table.
-     *
-     * @param string $type
-     * @return bool
-     */
-    public function hasType($type)
-    {
-        return $this->model::where('type', $type)->exists();
-    }
-
-    /**
-     * Delete a setting by key.
-     *
-     * @param string $key
-     * @return bool|null
-     * @throws \Exception
-     */
-    public function delete($key)
-    {
-        $setting = $this->model::where('key', $key)->first();
-
-        if ($setting) {
-            Cache::forget("{$this->cachePrefix}.$key");
-            return $setting->delete();
-        }
-
-        return false;
-    }
-
-    /**
-     * Get all settings or filter by type.
-     *
-     * @param string|null $type
-     * @return Collection
-     */
-    public function all($type = null)
-    {
-        $query = $this->model::query();
-        if ($type) {
-            $query->where('type', $type);
-        }
-
-        return $query->get()->map(function ($setting) {
-            return [
-                'key' => $setting->key,
-                'value' => $this->formatValue($setting->value, $setting->type),
-                'type' => $setting->type,
-            ];
-        });
-    }
-
-    /**
-     * Bulk set or update settings with value formatting.
-     *
-     * @param array $settings
-     * @return array
+     * @param array $settings An array of settings where each element is an associative array containing
+     *                        'key' (string), 'value' (mixed), and optionally 'type' (string, defaults to 'string').
+     * @return array An array of results from the set operation for each setting.
      */
     public function bulkSet(array $settings)
     {
-        $updatedSettings = [];
-
-        foreach ($settings as $setting) {
-            $updatedSettings[] = $this->set(
-                $setting['key'],
-                $setting['value'],
-                $setting['type'] ?? 'string'
-            );
-        }
-
-        return $updatedSettings;
+        return array_map(fn ($s) => $this->set($s['key'], $s['value'], $s['type'] ?? 'string'), $settings);
     }
 
     /**
-     * Bulk delete settings by keys.
+     * Retrieves the values associated with the specified keys from the system settings.
      *
-     * @param array $keys
-     * @return int Number of deleted settings
-     */
-    public function bulkDelete(array $keys)
-    {
-        $deleted = $this->model::whereIn('key', $keys)->delete();
-
-        foreach ($keys as $key) {
-            Cache::forget("{$this->cachePrefix}.$key");
-        }
-
-        return $deleted;
-    }
-
-    /**
-     * Bulk get settings by keys with value formatting.
-     *
-     * @param array $keys
-     * @param mixed $default
-     * @return array
+     * @param array $keys An array of keys to retrieve values for.
+     * @param mixed $default The default value to return for keys that do not exist.
+     * @return array An array of values corresponding to the provided keys, or the default value for non-existent keys.
      */
     public function bulkGet(array $keys, $default = null)
     {
-        return collect($keys)->mapWithKeys(function ($key) use ($default) {
-            return [$key => $this->get($key, $default)];
-        })->toArray();
+        return array_map(fn ($key) => $this->get($key, $default), $keys);
     }
 }
