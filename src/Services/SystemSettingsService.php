@@ -9,7 +9,6 @@ class SystemSettingsService
     protected $model;
     public function __construct($model){
         $this->model = $model ?? SystemSettings::class;
-        $this->model->bootIfNotBooted();
     }
     public function get(string $key, $default = null)
     {
