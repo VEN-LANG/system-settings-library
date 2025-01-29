@@ -3,7 +3,6 @@
     "description": "A laravel module that will handle system settings for your application.",
     "type": "library",
     "license": "MIT",
-    "version": "2.0.0",
     "autoload": {
         "psr-4": {
             "Venom\\SystemSettings\\": "src/"

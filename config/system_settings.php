@@ -10,7 +10,7 @@ return [
     | cached. This improves performance by reducing database queries.
     |
     */
-    'cache_duration' => env('SETTINGS_CACHE_DURATION', 60),
+    'cache_duration' => 60,
 
     /*
     |--------------------------------------------------------------------------
@@ -22,7 +22,7 @@ return [
     | You can customize this list to include any other data types you need.
     |
     */
-    'allowed_types' => ['string', 'integer', 'boolean', 'json', 'float', 'array', 'datetime'],
+    'allowed_types' => ['string', 'integer', 'boolean', 'json'],
 
     /*
     |--------------------------------------------------------------------------
@@ -47,7 +47,7 @@ return [
     | complex application.
     |
     */
-    'cache_key_prefix' => env('CACHE_KEY_PREFIX', 'system_settings'),
+    'cache_key_prefix' => 'system_settings',
 
     /*
     |--------------------------------------------------------------------------
@@ -59,18 +59,5 @@ return [
     | reduces the risk of errors.
     |
     */
-    'default_type' => env('SETTINGS_DEFAULT_TYPE', 'string'),
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Enable System Settings Commands
-    |--------------------------------------------------------------------------
-    |
-    | Determines whether the system settings Artisan commands should be registered.
-    | Setting this to false disables commands like `get:system-settings`,
-    | `set:system-settings`, `clear:system-settings`, and `has:system-settings`.
-    |
-    */
-    'enable_commands' => true,
+    'default_type' => 'string',
 ];
