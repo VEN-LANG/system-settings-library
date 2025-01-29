@@ -115,6 +115,7 @@ use /**
  * which serves as the underlying implementation of configuration management.
  */
     Illuminate\Support\Facades\Config;
+use Venom\SystemSettings\Models\SystemSettings;
 
 /**
  * Service provider for the SystemSettings package.
@@ -148,6 +149,22 @@ class SystemSettingsServiceProvider extends ServiceProvider
 
             // Get the model class from configuration, defaulting to the package's SystemSettings model.
             $model = $app['config']->get('system_settings.model', \Venom\SystemSettings\Models\SystemSettings::class);
+
+            if(!class_exists($model)){
+                throw new \Exception("Model class {$model} does not exist.");
+            }
+
+            if(!is_subclass_of($model, SystemSettings::class)){
+                throw new \Exception("Model class {$model} does not extend ".SystemSettings::class.".");
+            }
+
+            if(!class_exists($serviceClass)){
+                throw new \Exception("Service class {$serviceClass} does not exist.");
+            }
+
+            if(!is_subclass_of($serviceClass, \Venom\SystemSettings\Services\SystemSettingsService::class)){
+                throw new \Exception("Service class {$serviceClass} does not extend ".\Venom\SystemSettings\Services\SystemSettingsService::class.".");
+            }
 
             // Instantiate the service class with model and encrypted keys from the config.
             return new $serviceClass(new $model);
