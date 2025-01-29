@@ -3,7 +3,7 @@
     "description": "A laravel module that will handle system settings for your application.",
     "type": "library",
     "license": "MIT",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "autoload": {
         "psr-4": {
             "Venom\\SystemSettings\\": "src/"
@@ -21,9 +21,8 @@
         "illuminate/support": "^11.21.0",
         "illuminate/database": "^11.21.0",
         "illuminate/queue": "^11.21",
-        "illuminate/bus": "^11.41",
-        "illuminate/contracts": "^11.21",
-        "illuminate/events": "^11.41"
+        "illuminate/bus": "^11.21",
+        "illuminate/contracts": "^11.21"
     },
     "require-dev": {
         "laravel/framework": "^11.41"
