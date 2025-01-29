@@ -105,4 +105,54 @@ class SystemSettingsService
     {
         return array_map(fn ($key) => $this->get($key, $default), $keys);
     }
+
+    /**
+     * Removes multiple items based on the provided keys.
+     *
+     * @param array $keys An array of keys to be removed.
+     * @return array The result of removal operations for each key.
+     */
+    public function bulkRemove(array $keys){
+        return array_map(fn ($key) => $this->remove($key), $keys);
+    }
+
+    /**
+     * Removes multiple items by their keys in a bulk operation.
+     *
+     * @param array $keys An array of keys specifying the items to be removed.
+     */
+    public function bulkRemoveByKey(array $keys){
+        return $this->bulkRemove($keys);
+    }
+
+    /**
+     * Retrieves all records using the model's static getAll method.
+     *
+     * @return mixed All records fetched by the model.
+     */
+    public function getAll()
+    {
+        $this->model::getAllAttribute();
+    }
+
+    /**
+     * Sets the model property.
+     *
+     * @param mixed $model The model value to be set.
+     * @return void
+     */
+    public function setModel(mixed $model): void
+    {
+        $this->model = $model;
+    }
+
+    /**
+     * Retrieves the current model instance.
+     *
+     * @return mixed The model instance.
+     */
+    public function getModel(): mixed
+    {
+        return $this->model;
+    }
 }
