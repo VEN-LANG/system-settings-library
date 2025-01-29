@@ -197,4 +197,15 @@ class SystemSettings extends Model
         Cache::forget(self::$cachename.".{$model->key}");
         Cache::put(self::$cachename.".{$model->key}", $model->value, config('system_settings.cache_duration', 60));
     }
+
+
+    /**
+     * Retrieves all system settings from the database or cache.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection The collection of all system settings.
+     */
+    public static function getAllAttribute()
+    {
+        return Cache::remember(self::$cachename . '.all', config('system_settings.cache_duration', 60), fn() => self::all());
+    }
 }
