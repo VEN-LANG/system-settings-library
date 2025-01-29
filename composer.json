@@ -20,7 +20,11 @@
         "illuminate/support": "^11.21.0",
         "illuminate/database": "^11.21.0",
         "illuminate/queue": "^11.21",
-        "illuminate/bus": "^11.21",
-        "illuminate/contracts": "^11.21"
+        "illuminate/bus": "^11.41",
+        "illuminate/contracts": "^11.21",
+        "illuminate/events": "^11.41"
+    },
+    "require-dev": {
+        "laravel/framework": "^11.41"
     }
 }
