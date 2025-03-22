@@ -137,7 +137,7 @@ class SystemSettingsServiceProvider extends ServiceProvider
      *
      * @return void
      */
-    public function register()
+    public function register(): void
     {
         // Merge the package configuration file with the application's copy.
         $this->mergeConfigFrom(__DIR__ . '/../../config/system_settings.php', 'system_settings');

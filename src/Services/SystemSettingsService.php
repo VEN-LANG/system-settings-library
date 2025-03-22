@@ -54,7 +54,7 @@ class SystemSettingsService
      * @param mixed $default The default value to return if the key does not exist.
      * @return mixed The value associated with the key, or the default value if the key does not exist.
      */
-    public function get(string $key, $default = null)
+    public function get(string $key, $default = null): mixed
     {
         return $this->model::getValueByKey($key, $default);
     }
@@ -77,7 +77,7 @@ class SystemSettingsService
      * @param string $key The key identifying the value to be removed.
      * @return bool True if the value was successfully removed, false otherwise.
      */
-    public function remove(string $key)
+    public function remove(string $key): bool
     {
         return $this->model::removeByKey($key);
     }
@@ -130,9 +130,9 @@ class SystemSettingsService
      *
      * @return mixed All records fetched by the model.
      */
-    public function getAll()
+    public function getAll(): mixed
     {
-        $this->model::getAllAttribute();
+        return $this->model::getAllAttribute();
     }
 
     /**
