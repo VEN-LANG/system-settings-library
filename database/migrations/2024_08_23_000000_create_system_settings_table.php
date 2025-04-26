@@ -9,9 +9,11 @@ class CreateSystemSettingsTable extends Migration
     {
         Schema::create(config('system_settings.table_name', 'system_settings'), function (Blueprint $table) {
             $table->id();
-            $table->string('key')->unique();
-            $table->string('type')->default('string');
+            $table->string('key')->unique()->index();
             $table->text('value')->nullable();
+            $table->string('type')->default('text');
+            $table->string('category')->nullable();
+            $table->string('subcategory')->nullable();
             $table->timestamps();
         });
     }
