@@ -16,7 +16,8 @@ class SystemSettings extends Model
      * An array that defines the attributes that are mass assignable.
      * This is used to specify which attributes can be set using mass-assignment techniques.
      */
-    protected $fillable = ['key', 'type', 'value'];
+    protected $fillable = ['key', 'type', 'value', 'category', 'subcategory'];
+
     /**
      * Stores encrypted keys for sensitive data or encryption processes.
      */
