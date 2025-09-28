@@ -104,18 +104,15 @@ use /**
  * - Retrieving configuration values.
  * - Modifying configuration values during runtime.
  * - Checking for the existence of specific configuration keys.
- *
- * Methods available in this facade:
- * - get: Retrieve a configuration value using a key, optionally providing a default.
- * - set: Set a configuration value using a key.
- * - has: Determine if a configuration key exists.
- * - all: Retrieve all configuration values as an array.
+ * - All: Retrieve all configuration values as an array.
  *
  * This class acts as a proxy to the Illuminate\Config\Repository instance,
  * which serves as the underlying implementation of configuration management.
  */
     Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\File;
 use Venom\SystemSettings\Models\SystemSettings;
+use Venom\SystemSettings\Support\SettingsRegistry;
 
 /**
  * Service provider for the SystemSettings package.
@@ -141,6 +138,11 @@ class SystemSettingsServiceProvider extends ServiceProvider
     {
         // Merge the package configuration file with the application's copy.
         $this->mergeConfigFrom(__DIR__ . '/../../config/system_settings.php', 'system_settings');
+
+        // Bind the settings registry.
+        $this->app->singleton('settings.registry', function ($app) {
+            return new SettingsRegistry();
+        });
 
         // Register the SystemSettingsService dynamically from config.
         $this->app->singleton('Venom\SystemSettings\Services\SystemSettingsService', function ($app) {
@@ -168,6 +170,11 @@ class SystemSettingsServiceProvider extends ServiceProvider
 
             // Instantiate the service class with model and encrypted keys from the config.
             return new $serviceClass(new $model);
+        });
+
+        // Provide a friendly alias 'settings' to resolve the bound service.
+        $this->app->singleton('settings', function ($app) {
+            return $app->make('Venom\\SystemSettings\\Services\\SystemSettingsService');
         });
 
         // Register console commands if the application is running in the console.
@@ -199,5 +206,47 @@ class SystemSettingsServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../../database/migrations' => database_path('migrations'),
         ], 'migrations');
+
+        // Attempt to register settings from modules if present.
+        $this->registerSettings();
+    }
+
+    /**
+     * Discover and register settings definitions from Modules/* if present.
+     */
+    protected function registerSettings(): void
+    {
+        // Only attempt when helpers like base_path() are available (Laravel app context)
+        if (!function_exists('base_path')) {
+            return;
+        }
+
+        $registry = $this->app->make('settings.registry');
+
+        // Core module settings
+        $coreDefinitionsPath = \base_path('Modules/Core/app/Settings/definitions.php');
+        if (File::exists($coreDefinitionsPath)) {
+            $definitions = include $coreDefinitionsPath;
+            if (is_array($definitions)) {
+                $registry->registerModule('Core', $definitions);
+            }
+        }
+
+        // Other modules
+        $moduleDirectories = glob(\base_path('Modules/*'), GLOB_ONLYDIR) ?: [];
+        foreach ($moduleDirectories as $moduleDir) {
+            $moduleName = basename($moduleDir);
+            if ($moduleName === 'Core') {
+                continue;
+            }
+
+            $definitionFile = $moduleDir . '/app/Settings/definitions.php';
+            if (File::exists($definitionFile)) {
+                $definitions = include $definitionFile;
+                if (is_array($definitions)) {
+                    $registry->registerModule($moduleName, $definitions);
+                }
+            }
+        }
     }
 }
