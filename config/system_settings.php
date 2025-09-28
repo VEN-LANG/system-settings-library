@@ -1,6 +1,8 @@
 <?php
 
 return [
+
+    'table_name' => env('SYSTEM_SETTINGS_TABLE_NAME','default_system_settings'),
     /*
     |--------------------------------------------------------------------------
     | Cache Settings
@@ -37,7 +39,7 @@ return [
     |
     */
     'model' => env('SYSTEM_SETTINGS_MODEL', \Venom\SystemSettings\Models\SystemSettings::class),
-
+    'service' => env('SYSTEM_SETTINGS_SERVICE', \Venom\SystemSettings\Services\SystemSettingsService::class),
     /*
     |--------------------------------------------------------------------------
     | Default Type
