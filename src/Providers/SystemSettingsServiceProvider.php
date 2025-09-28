@@ -216,35 +216,44 @@ class SystemSettingsServiceProvider extends ServiceProvider
      */
     protected function registerSettings(): void
     {
-        // Only attempt when helpers like base_path() are available (Laravel app context)
         if (!function_exists('base_path')) {
             return;
         }
 
         $registry = $this->app->make('settings.registry');
 
-        // Core module settings
-        $coreDefinitionsPath = \base_path('Modules/Core/app/Settings/definitions.php');
-        if (File::exists($coreDefinitionsPath)) {
-            $definitions = include $coreDefinitionsPath;
-            if (is_array($definitions)) {
-                $registry->registerModule('Core', $definitions);
+        $includeCore = (bool) config('system_settings.include_core', true);
+        $coreName = (string) config('system_settings.core_module_name', 'Core');
+        $scanPaths = (array) config('system_settings.module_scan_paths', ['Modules/*']);
+        $definitionsRelative = (string) config('system_settings.definitions_relative_path', 'app/Settings/definitions.php');
+
+        // Core module (optional)
+        if ($includeCore) {
+            $corePath = base_path("Modules/{$coreName}/{$definitionsRelative}");
+            if (File::exists($corePath)) {
+                $definitions = include $corePath;
+                if (is_array($definitions)) {
+                    $registry->registerModule($coreName, $definitions);
+                }
             }
         }
 
-        // Other modules
-        $moduleDirectories = glob(\base_path('Modules/*'), GLOB_ONLYDIR) ?: [];
-        foreach ($moduleDirectories as $moduleDir) {
-            $moduleName = basename($moduleDir);
-            if ($moduleName === 'Core') {
-                continue;
-            }
+        // Discover modules by configured globs
+        foreach ($scanPaths as $relativeGlob) {
+            $glob = base_path($relativeGlob);
+            $dirs = glob($glob, GLOB_ONLYDIR) ?: [];
+            foreach ($dirs as $moduleDir) {
+                $moduleName = basename($moduleDir);
+                if ($includeCore && $moduleName === $coreName) {
+                    continue; // already registered
+                }
 
-            $definitionFile = $moduleDir . '/app/Settings/definitions.php';
-            if (File::exists($definitionFile)) {
-                $definitions = include $definitionFile;
-                if (is_array($definitions)) {
-                    $registry->registerModule($moduleName, $definitions);
+                $definitionFile = rtrim($moduleDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $definitionsRelative;
+                if (File::exists($definitionFile)) {
+                    $definitions = include $definitionFile;
+                    if (is_array($definitions)) {
+                        $registry->registerModule($moduleName, $definitions);
+                    }
                 }
             }
         }

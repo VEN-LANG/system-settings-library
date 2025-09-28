@@ -1,53 +1,42 @@
 <?php
 
 return [
+    'table_name' => env('SYSTEM_SETTINGS_TABLE_NAME', 'system_settings'),
 
-    'table_name' => env('SYSTEM_SETTINGS_TABLE_NAME','default_system_settings'),
     /*
     |--------------------------------------------------------------------------
     | Cache Settings
     |--------------------------------------------------------------------------
     |
-    | Specifies the cache settings for system settings. You can enable or
-    | disable caching and set the duration dynamically using environment
-    | variables.
+    | You can configure cache TTL using seconds or minutes. If
+    | SYSTEM_SETTINGS_CACHE_DURATION_SECONDS is set, it takes precedence.
+    | Otherwise, SYSTEM_SETTINGS_CACHE_DURATION is treated as minutes.
     |
     */
     'cache_enabled' => env('SYSTEM_SETTINGS_CACHE_ENABLED', true),
-    'cache_duration' => env('SYSTEM_SETTINGS_CACHE_DURATION', 60), // in minutes
-    'cache_duration_seconds' => env('SYSTEM_SETTINGS_CACHE_DURATION_SECONDS', 3600), // in seconds
+    'cache_duration' => env('SYSTEM_SETTINGS_CACHE_DURATION', 60), // minutes (fallback)
+    'cache_duration_seconds' => env('SYSTEM_SETTINGS_CACHE_DURATION_SECONDS', 3600), // seconds (preferred)
     'cache_key_prefix' => env('SYSTEM_SETTINGS_CACHE_KEY_PREFIX', 'system_settings'),
 
     /*
     |--------------------------------------------------------------------------
     | Allowed Data Types
     |--------------------------------------------------------------------------
-    |
-    | Defines the valid data types for system settings. This prevents invalid
-    | data from being stored and ensures consistency in stored values.
-    |
     */
-    'allowed_types' => ['string', 'integer', 'boolean', 'json', 'array', 'float'],
+    'allowed_types' => ['string', 'integer', 'boolean', 'json', 'array', 'float', 'number'],
 
     /*
     |--------------------------------------------------------------------------
-    | System Settings Model
+    | System Settings Model/Service
     |--------------------------------------------------------------------------
-    |
-    | Defines the model that represents system settings. You can replace this
-    | with a custom model to extend functionality.
-    |
     */
     'model' => env('SYSTEM_SETTINGS_MODEL', \Venom\SystemSettings\Models\SystemSettings::class),
     'service' => env('SYSTEM_SETTINGS_SERVICE', \Venom\SystemSettings\Services\SystemSettingsService::class),
+
     /*
     |--------------------------------------------------------------------------
     | Default Type
     |--------------------------------------------------------------------------
-    |
-    | Specifies the default type to be used when a type is not provided.
-    | Ensures consistency and minimizes potential errors.
-    |
     */
     'default_type' => env('SYSTEM_SETTINGS_DEFAULT_TYPE', 'string'),
 
@@ -55,22 +44,14 @@ return [
     |--------------------------------------------------------------------------
     | Encryption Settings
     |--------------------------------------------------------------------------
-    |
-    | Enables encryption for sensitive system settings. This ensures
-    | security when storing sensitive data like API keys or passwords.
-    |
     */
     'enable_encryption' => env('SYSTEM_SETTINGS_ENCRYPTION_ENABLED', true),
     'encrypted_keys' => explode(',', env('SYSTEM_SETTINGS_ENCRYPTED_KEYS', 'api_key,smtp_password,db_password')),
 
     /*
     |--------------------------------------------------------------------------
-    | Validation Rules
+    | Validation Rules (optional defaults)
     |--------------------------------------------------------------------------
-    |
-    | Defines validation rules for system settings to ensure correct data
-    | formats before storage.
-    |
     */
     'validation_rules' => [
         'integer' => 'numeric',
@@ -79,15 +60,37 @@ return [
         'json' => 'json',
         'array' => 'array',
         'float' => 'numeric',
+        'number' => 'numeric',
     ],
 
     /*
     |--------------------------------------------------------------------------
-    | Audit Logging
+    | Audit Logging (placeholder toggle)
     |--------------------------------------------------------------------------
-    |
-    | Enables logging of system setting changes for auditing purposes.
-    |
     */
     'enable_audit_logging' => env('SYSTEM_SETTINGS_AUDIT_LOGGING', true),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Module Definitions Discovery
+    |--------------------------------------------------------------------------
+    | Where to look for modules and what file to include per-module for
+    | settings definitions. Paths accept glob patterns. Defaults scan
+    | base_path('Modules/*').
+    */
+    'include_core' => env('SYSTEM_SETTINGS_INCLUDE_CORE', true),
+    'core_module_name' => env('SYSTEM_SETTINGS_CORE_MODULE_NAME', 'Core'),
+    'module_scan_paths' => [
+        // e.g. '/var/www/app/Modules/*'
+        // base_path() will be applied dynamically; keep relative here for clarity
+        'Modules/*',
+    ],
+    'definitions_relative_path' => env('SYSTEM_SETTINGS_DEFINITIONS_RELATIVE', 'app/Settings/definitions.php'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Uploads Path
+    |--------------------------------------------------------------------------
+    */
+    'uploads_path' => env('SYSTEM_SETTINGS_UPLOADS_PATH', 'uploads/settings'),
 ];

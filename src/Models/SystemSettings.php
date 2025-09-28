@@ -88,9 +88,19 @@ class SystemSettings extends Model
      */
     public static function getValueByKey($key, $default = null)
     {
-        return Cache::remember(self::$cachename.".$key", config('system_settings.cache_duration', 60), function () use ($key, $default) {
+        $cacheEnabled = (bool) config('system_settings.cache_enabled', true);
+        $ttl = self::ttlSeconds();
+        $cacheKey = self::$cachename . ".$key";
+
+        $fetch = function () use ($key, $default) {
             return optional(self::where('key', $key)->first())->value ?? $default;
-        });
+        };
+
+        if (! $cacheEnabled) {
+            return $fetch();
+        }
+
+        return Cache::remember($cacheKey, $ttl, $fetch);
     }
 
     /**
@@ -195,8 +205,12 @@ class SystemSettings extends Model
      */
     protected static function refreshCache($model)
     {
-        Cache::forget(self::$cachename.".{$model->key}");
-        Cache::put(self::$cachename.".{$model->key}", $model->value, config('system_settings.cache_duration', 60));
+        $cacheEnabled = (bool) config('system_settings.cache_enabled', true);
+        $cacheKey = self::$cachename . ".{$model->key}";
+        Cache::forget($cacheKey);
+        if ($cacheEnabled) {
+            Cache::put($cacheKey, $model->value, self::ttlSeconds());
+        }
     }
 
 
@@ -207,6 +221,28 @@ class SystemSettings extends Model
      */
     public static function getAllAttribute()
     {
-        return Cache::remember(self::$cachename . '.all', config('system_settings.cache_duration', 60), fn() => self::all());
+        $cacheEnabled = (bool) config('system_settings.cache_enabled', true);
+        $ttl = self::ttlSeconds();
+        $key = self::$cachename . '.all';
+
+        $fetch = fn () => self::all();
+
+        if (! $cacheEnabled) {
+            return $fetch();
+        }
+
+        return Cache::remember($key, $ttl, $fetch);
+    }
+
+    /**
+     * Resolve TTL in seconds based on config.
+     */
+    protected static function ttlSeconds(): int
+    {
+        $seconds = config('system_settings.cache_duration_seconds');
+        if ($seconds !== null) {
+            return (int) $seconds;
+        }
+        return (int) (config('system_settings.cache_duration', 60) * 60);
     }
 }

@@ -148,10 +148,11 @@ class SystemSettingsService
      */
     public function all(): array
     {
-        $cacheKey = self::SETTINGS_CACHE_KEY;
-        $ttl = (int) (\config('system_settings.cache_duration', self::CACHE_TTL));
+        $cacheEnabled = (bool) \config('system_settings.cache_enabled', true);
+        $cacheKey = \config('system_settings.cache_key_prefix', 'system_settings') . '.map';
+        $ttl = $this->cacheTtlSeconds();
 
-        return Cache::remember($cacheKey, $ttl, function () {
+        $fetch = function () {
             $table = \config('system_settings.table_name', 'system_settings');
             return DB::table($table)
                 ->get()
@@ -160,7 +161,13 @@ class SystemSettingsService
                     return $this->castValue($item->value, $item->type);
                 })
                 ->toArray();
-        });
+        };
+
+        if (!$cacheEnabled) {
+            return $fetch();
+        }
+
+        return Cache::remember($cacheKey, $ttl, $fetch);
     }
 
     /**
@@ -209,7 +216,8 @@ class SystemSettingsService
      */
     public function clearCache(): void
     {
-        Cache::forget(self::SETTINGS_CACHE_KEY);
+        $mapKey = (\config('system_settings.cache_key_prefix', 'system_settings')) . '.map';
+        Cache::forget($mapKey);
         // Also clear the model-level aggregated cache if used
         Cache::forget((\config('system_settings.cache_key_prefix', 'system_settings')).'.all');
     }
@@ -294,7 +302,7 @@ class SystemSettingsService
             return (string) $file;
         }
 
-        $path = 'uploads/settings';
+        $path = \config('system_settings.uploads_path', 'uploads/settings');
 
         // Get old file if it exists
         $table = \config('system_settings.table_name', 'system_settings');
@@ -349,5 +357,18 @@ class SystemSettingsService
             default:
                 return $value;
         }
+    }
+
+    /**
+     * Return cache TTL in seconds, preferring seconds config if provided.
+     */
+    protected function cacheTtlSeconds(): int
+    {
+        $seconds = \config('system_settings.cache_duration_seconds');
+        if ($seconds !== null) {
+            return (int) $seconds;
+        }
+        // Fallback: minutes to seconds
+        return (int) (\config('system_settings.cache_duration', 60) * 60);
     }
 }
