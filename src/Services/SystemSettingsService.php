@@ -7,22 +7,11 @@
 
 namespace Venom\SystemSettings\Services;
 
-use /**
- * The SystemSettings class is a model representation of the system settings
- * used within the application. It is designed to manage the storage,
- * retrieval, and updating of configuration settings for the system.
- *
- * Responsibilities:
- * - Provides access to system-wide configuration settings.
- * - Handles interaction with the database or other persistent storage mechanisms
- *   for storing system settings.
- * - Ensures settings are retrieved and saved in a structured and consistent manner.
- *
- * Typical Use Case:
- * - This class would be utilized to load or update settings that are
- *   global to the application, such as API keys, feature flags, or application configurations.
- */
-    Venom\SystemSettings\Models\SystemSettings;
+use Venom\SystemSettings\Models\SystemSettings;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Http\UploadedFile;
 
 /**
  * Service class for managing system settings.
@@ -32,19 +21,28 @@ use /**
 class SystemSettingsService
 {
     /**
-     *
+     * The underlying Eloquent model instance/class used by the service.
      */
     protected $model;
 
     /**
+     * Cache key for storing the whole settings map.
+     */
+    protected const SETTINGS_CACHE_KEY = 'system_settings';
+
+    /**
+     * Cache TTL in seconds (defaults to 1 hour if not configured).
+     */
+    protected const CACHE_TTL = 3600;
+
+    /**
      * Constructor method for initializing the class with a model.
      *
-     * @param mixed $model The model to be used. Defaults to SystemSettings::class if null.
+     * @param mixed $model The model to be used. Defaults to SystemSettings model from config.
      * @return void
      */
     public function __construct($model){
-
-        $this->model = $model ?? new (config('system_settings.model', SystemSettings::class))();
+        $this->model = $model ?? new (\config('system_settings.model', SystemSettings::class))();
     }
 
     /**
@@ -61,6 +59,7 @@ class SystemSettingsService
 
     /**
      * Sets a value in the system settings for a given key and type.
+     * Automatically clears the aggregate cache after update.
      *
      * @param string $key The key identifying the setting to be set.
      * @param mixed $value The value to be set for the given key.
@@ -68,7 +67,18 @@ class SystemSettingsService
      */
     public function set(string $key, $value, string $type = 'string')
     {
-        return $this->model::setValueByKey($key, $value, $type);
+        // If file type, handle upload/storage, allowing string paths to pass-through
+        if ($type === 'file' && $value !== null) {
+            $value = $this->handleFileUpload($key, $value);
+        }
+
+        // Use upsertWithMeta to ensure type is applied before value mutator runs
+        $this->upsertWithMeta($key, $value, $type);
+
+        // Clear aggregate cache map
+        $this->clearCache();
+
+        return true;
     }
 
     /**
@@ -79,27 +89,85 @@ class SystemSettingsService
      */
     public function remove(string $key): bool
     {
-        return $this->model::removeByKey($key);
+        $deleted = (bool) $this->model::removeByKey($key);
+        if ($deleted) {
+            $this->clearCache();
+        }
+        return $deleted;
     }
 
     /**
      * Sets multiple settings in bulk, using the provided key-value pairs and optional types.
+     * Accepts two shapes:
+     *  - [ ['key' => 'k', 'value' => v, 'type' => 'string'], ... ]
+     *  - [ 'k' => [ 'value' => v, 'type' => 'string', 'category' => '...', 'subcategory' => '...' ], ... ]
      *
-     * @param array $settings An array of settings where each element is an associative array containing
-     *                        'key' (string), 'value' (mixed), and optionally 'type' (string, defaults to 'string').
-     * @return array An array of results from the set operation for each setting.
+     * @param array $settings
+     * @return array|bool Returns array of results when list-of-arrays given; true when associative map given.
      */
     public function bulkSet(array $settings)
     {
+        // If associative map: key => [value, type, category, subcategory]
+        $isAssoc = array_keys($settings) !== range(0, count($settings) - 1);
+        if ($isAssoc) {
+            foreach ($settings as $key => $data) {
+                $value = $data['value'] ?? null;
+                $type = $data['type'] ?? 'string';
+                $category = $data['category'] ?? null;
+                $subcategory = $data['subcategory'] ?? null;
+                $this->upsertWithMeta($key, $value, $type, $category, $subcategory);
+            }
+            $this->clearCache();
+            return true;
+        }
+
+        // Fallback to legacy shape processing
         return array_map(fn ($s) => $this->set($s['key'], $s['value'], $s['type'] ?? 'string'), $settings);
     }
 
     /**
-     * Retrieves the values associated with the specified keys from the system settings.
+     * Alias maintained for backward compatibility.
+     */
+    public function bulkRemoveByKey(array $keys){
+        return $this->bulkRemove($keys);
+    }
+
+    /**
+     * Retrieves all records using the model's static getAll method.
+     * Note: this returns Eloquent collection of model instances.
      *
-     * @param array $keys An array of keys to retrieve values for.
-     * @param mixed $default The default value to return for keys that do not exist.
-     * @return array An array of values corresponding to the provided keys, or the default value for non-existent keys.
+     * @return mixed All records fetched by the model.
+     */
+    public function getAll(): mixed
+    {
+        return $this->model::getAllAttribute();
+    }
+
+    /**
+     * Convenience: get all settings as a key => value array with type-casting applied.
+     */
+    public function all(): array
+    {
+        $cacheKey = self::SETTINGS_CACHE_KEY;
+        $ttl = (int) (\config('system_settings.cache_duration', self::CACHE_TTL));
+
+        return Cache::remember($cacheKey, $ttl, function () {
+            $table = \config('system_settings.table_name', 'system_settings');
+            return DB::table($table)
+                ->get()
+                ->keyBy('key')
+                ->map(function ($item) {
+                    return $this->castValue($item->value, $item->type);
+                })
+                ->toArray();
+        });
+    }
+
+    /**
+     * Bulk get convenience.
+     *
+     * @param array $keys
+     * @param mixed $default
      */
     public function bulkGet(array $keys, $default = null)
     {
@@ -109,30 +177,57 @@ class SystemSettingsService
     /**
      * Removes multiple items based on the provided keys.
      *
-     * @param array $keys An array of keys to be removed.
-     * @return array The result of removal operations for each key.
+     * @param array $keys
+     * @return array
      */
     public function bulkRemove(array $keys){
-        return array_map(fn ($key) => $this->remove($key), $keys);
+        $results = array_map(fn ($key) => $this->remove($key), $keys);
+        $this->clearCache();
+        return $results;
     }
 
     /**
-     * Removes multiple items by their keys in a bulk operation.
-     *
-     * @param array $keys An array of keys specifying the items to be removed.
+     * Set multiple settings using an associative map. Wrapper matching module API name.
      */
-    public function bulkRemoveByKey(array $keys){
-        return $this->bulkRemove($keys);
-    }
-
-    /**
-     * Retrieves all records using the model's static getAll method.
-     *
-     * @return mixed All records fetched by the model.
-     */
-    public function getAll(): mixed
+    public function setMany(array $settings): bool
     {
-        return $this->model::getAllAttribute();
+        // Delegate to bulkSet which already handles both shapes and clears cache.
+        $result = $this->bulkSet($settings);
+        return $result === true || $result !== false;
+    }
+
+    /**
+     * Delete a setting by key. Wrapper matching module API name.
+     */
+    public function delete(string $key): bool
+    {
+        return $this->remove($key);
+    }
+
+    /**
+     * Clear the aggregate settings cache map.
+     */
+    public function clearCache(): void
+    {
+        Cache::forget(self::SETTINGS_CACHE_KEY);
+        // Also clear the model-level aggregated cache if used
+        Cache::forget((\config('system_settings.cache_key_prefix', 'system_settings')).'.all');
+    }
+
+    /**
+     * Get settings by category (key => casted value array).
+     */
+    public function getByCategory(string $category): array
+    {
+        $table = \config('system_settings.table_name', 'system_settings');
+        return DB::table($table)
+            ->where('category', $category)
+            ->get()
+            ->keyBy('key')
+            ->map(function ($item) {
+                return $this->castValue($item->value, $item->type);
+            })
+            ->toArray();
     }
 
     /**
@@ -154,5 +249,105 @@ class SystemSettingsService
     public function getModel(): mixed
     {
         return $this->model;
+    }
+
+    // -------------------------
+    // Internal helpers
+    // -------------------------
+
+    /**
+     * Upsert with category/subcategory support and proper value handling.
+     */
+    protected function upsertWithMeta(string $key, $value, string $type = 'string', ?string $category = null, ?string $subcategory = null): void
+    {
+        if ($type === 'file' && $value !== null) {
+            $value = $this->handleFileUpload($key, $value);
+        }
+
+        // Use Eloquent to ensure mutators (encrypt/sanitize) are applied in correct order
+        $modelClass = get_class($this->model);
+        /** @var \Illuminate\Database\Eloquent\Model $setting */
+        $setting = $modelClass::firstOrNew(['key' => $key]);
+        $setting->type = $type;
+        if ($category !== null) {
+            $setting->category = $category;
+        }
+        if ($subcategory !== null) {
+            $setting->subcategory = $subcategory;
+        }
+        $setting->value = $value; // triggers mutator using $type
+        $setting->save();
+    }
+
+    /**
+     * Handle file upload; allow strings to pass through unchanged; delete replaced files if present.
+     */
+    protected function handleFileUpload(string $key, $file): string
+    {
+        // If file is already a path string, return as-is
+        if (is_string($file)) {
+            return $file;
+        }
+
+        if (!($file instanceof UploadedFile)) {
+            // Fallback: cast to string
+            return (string) $file;
+        }
+
+        $path = 'uploads/settings';
+
+        // Get old file if it exists
+        $table = \config('system_settings.table_name', 'system_settings');
+        $oldFile = DB::table($table)->where('key', $key)->value('value');
+
+        // Delete old file if it exists
+        if ($oldFile && File::exists(\public_path($oldFile))) {
+            File::delete(\public_path($oldFile));
+        }
+
+        // Ensure directory exists
+        if (!File::exists(\public_path($path))) {
+            File::makeDirectory(\public_path($path), 0755, true);
+        }
+
+        // Store new file
+        $filename = $key . '_' . time() . '.' . $file->getClientOriginalExtension();
+        $file->move(\public_path($path), $filename);
+
+        return '/' . trim($path, '/') . '/' . $filename;
+    }
+
+    /**
+     * Prepare value for storage when bypassing model mutators.
+     */
+    protected function prepareForStorage($value, string $type): string
+    {
+        if ($type === 'boolean') {
+            return $value ? '1' : '0';
+        }
+        if ($type === 'array' || $type === 'json') {
+            return json_encode($value);
+        }
+        return (string) $value;
+    }
+
+    /**
+     * Cast raw DB value to appropriate PHP type.
+     */
+    protected function castValue(string $value, string $type)
+    {
+        switch ($type) {
+            case 'boolean':
+                return (bool) $value;
+            case 'number':
+                return (float) $value;
+            case 'integer':
+                return (int) $value;
+            case 'array':
+            case 'json':
+                return json_decode($value, true);
+            default:
+                return $value;
+        }
     }
 }

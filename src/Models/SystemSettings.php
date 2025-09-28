@@ -155,7 +155,7 @@ class SystemSettings extends Model
      * Formats a given value based on the specified type.
      *
      * @param mixed $value The value to be formatted.
-     * @param string $type The type to format the value as. Supported types: 'integer', 'boolean', 'json', 'array', 'float', or default to 'string'.
+     * @param string $type The type to format the value as. Supported types: 'integer', 'boolean', 'json', 'array', 'float', 'number' or default to 'string'.
      * @return mixed The formatted value based on the given type.
      */
     protected function formatValue($value, $type)
@@ -164,7 +164,7 @@ class SystemSettings extends Model
             'integer' => (int) $value,
             'boolean' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
             'json', 'array' => json_decode($value, true, 512, JSON_THROW_ON_ERROR),
-            'float' => (float) $value,
+            'float', 'number' => (float) $value,
             default => (string) $value,
         };
     }
@@ -173,7 +173,7 @@ class SystemSettings extends Model
      * Sanitizes the given value based on the specified type.
      *
      * @param mixed $value The value to be sanitized.
-     * @param string $type The type to sanitize the value as. Supported types are 'integer', 'boolean', 'json', 'array', 'float', or defaults to 'string'.
+     * @param string $type The type to sanitize the value as. Supported types are 'integer', 'boolean', 'json', 'array', 'float', 'number' or defaults to 'string'.
      * @return mixed The sanitized value cast to the specified type.
      */
     protected function sanitizeValue($value, $type)
@@ -182,7 +182,7 @@ class SystemSettings extends Model
             'integer' => (int) $value,
             'boolean' => (bool) $value,
             'json', 'array' => json_encode($value, JSON_THROW_ON_ERROR),
-            'float' => (float) $value,
+            'float', 'number' => (float) $value,
             default => (string) $value,
         };
     }
